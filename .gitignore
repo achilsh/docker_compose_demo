@@ -1,3 +1,4 @@
 .idea
 gin_demo2/logs/test.log
 gin_demo_docker_compose/logs/test.log
+./data/
