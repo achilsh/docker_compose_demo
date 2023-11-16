@@ -1,0 +1,58 @@
+services:
+  gin_demo1:
+    build: ./gin_demo_docker_compose
+    image: gin_demo:v1
+    container_name: gin_demo1
+    user: root
+    volumes:
+      - type:  bind 
+        source: /home/user/works/docker_compose/demo/gin_demo_docker_compose/logs
+        target: /home/user/demo/logs
+    depends_on:
+      - gin_demo2
+    ports:
+      - "8080:8080"
+    environment:
+       req_ip: "172.18.0.1"
+    restart: on-failure
+    networks: 
+      - gin_net 
+      
+    privileged: true
+    # commond: "" #指定新的运行命令替代 Dockerfile中 CMD 
+    # command: 
+      # -  提供参数： provide default arguments for the ENTRYPOINT instruction, 
+      # - both the CMD and ENTRYPOINT instructions should be specified with the JSON array format.
+  
+    # working_dir: /home/user/demo
+
+  gin_demo2:
+    build: ./gin_demo2 
+    image: gin_demo2:v1 
+    container_name: gin_demo2
+    ports:
+      - "8081:8081"
+    volumes:
+      - /home/user/works/docker_compose/demo/gin_demo2/logs:/home/user/demo2/logs:rw
+    environment:
+      req_ip: "172.18.0.1"
+    depends_on:
+      - redis_demo
+    networks: 
+      - gin_net 
+      
+  redis_demo:
+    image: redis:6.2.5 
+    container_name: redis_demo
+    command: redis-server
+    ports: 
+      - 6379:6379 
+    volumes:
+      - ./data/redis/data:/data:rw 
+    networks:
+      - gin_net
+    
+
+networks:
+  gin_net:
+    driver: bridge

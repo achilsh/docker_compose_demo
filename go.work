@@ -1,0 +1,6 @@
+go 1.21.3
+
+use (
+	./gin_demo2
+	./gin_demo_docker_compose
+)
