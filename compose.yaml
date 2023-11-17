@@ -1,22 +1,45 @@
 services:
   gin_demo1:
-    build: ./gin_demo_docker_compose
-    image: gin_demo:v1
+    # build: ./gin_demo_docker_compose ###标识 Dockerfile 的路径名。根据指定路径里的Dockerfile,来构建image.
+    build:
+      context: ./gin_demo_docker_compose ##指定了dockerfile文件 的路径，可以是链接到 git 仓库的 url. 也可是相对路径，绝对路径。
+      dockerfile: Dockerfile  ##指定 自定义构建的dockerfile， 使用此文件来构建。
+      args: 
+        - GIT_COMMIT=cdc3b19 ## 指定参数，该参数在构建时传给 Dockerfile中的 ARG GIT_COMMIT
+
+    healthcheck:  ### 检查容器是否在运行。
+      disable: true  
+    image: gin_demo:v1    ##指定已存在镜像名和版本, 如果该项和 build 项同时指定，那么优先使用该项，而不是build项。
+
     container_name: gin_demo1
     user: root
     volumes:
       - type:  bind 
         source: /home/user/works/docker_compose/demo/gin_demo_docker_compose/logs
         target: /home/user/demo/logs
+      - type: bind  ####指定了bind，那么 source的值： ../test_dir 必须要在本地Host 上存在,可以不是 顶层volumes定义的
+        source: ../test_dir  ### 不是 顶层volumes定义的
+        target: /home/user/demo/test_demo_c
+      - type: volume   ####指定了 volume，source 值可以是顶层 volumes定义的值，如果其他服务的容器也挂载了，这样可以保证和其他容器中共享。
+        source: test_dir
+        target: /home/user/demo/test_demo_c2
     depends_on:
       - gin_demo2
     ports:
-      - "8080:8080"
+      - "8080:8080" ### 端口映射， HOST:CONTAINER 的方式指定端口，可以是：  "9090-9091:8080-8081"
     environment:
        req_ip: "172.18.0.1"
     restart: on-failure
-    networks: 
+    networks:   ##指定服务容器加入的网络。
       - gin_net 
+    # network_mode: bridge ### 设置服务容器的网络模型 不能和 networks同时设置。 有这些值： none， host, bridge. 
+    sysctls: ###定义设置容器的内核参数等。
+      net.core.somaxconn: 1024
+
+    ulimits: ### 设置容器的默认限制值。
+      nofile:
+        soft: 20000
+        hard: 40000
       
     privileged: true
     # commond: "" #指定新的运行命令替代 Dockerfile中 CMD 
@@ -24,7 +47,7 @@ services:
       # -  提供参数： provide default arguments for the ENTRYPOINT instruction, 
       # - both the CMD and ENTRYPOINT instructions should be specified with the JSON array format.
   
-    # working_dir: /home/user/demo
+    # working_dir: /home/user/demo  ##重写 image中的 WORKDIR
 
   gin_demo2:
     build: ./gin_demo2 
@@ -33,7 +56,9 @@ services:
     ports:
       - "8081:8081"
     volumes:
-      - /home/user/works/docker_compose/demo/gin_demo2/logs:/home/user/demo2/logs:rw
+      # - /home/user/works/docker_compose/demo/gin_demo2/logs:/home/user/demo2/logs:rw ###其中rw 是容器对path的读写权限。
+      - ./gin_demo2/logs:/home/user/demo2/logs:rw
+      - test_dir:/home/user/demo2/test_demo_c:rw ######### test_dir 可以是 顶层 volumes 定义的，如果其他服务的容器也挂载了，这样可以保持和其他container进行数据共享。
     environment:
       req_ip: "172.18.0.1"
     depends_on:
@@ -48,11 +73,19 @@ services:
     ports: 
       - 6379:6379 
     volumes:
-      - ./data/redis/data:/data:rw 
+      - ./data/redis/data:/data:rw  ###容器可以读写这个目录， 有rw, ro
+      - test_dir:/data/test_demo_c_vv:rw ####### test_dir 可以是 顶层 volumes定义的，如果其他容器也挂载了这个卷名，那么可以和其他容器共享该目录中的数据。
     networks:
       - gin_net
-    
+      
+
+    sysctls: ###定义设置容器的内核参数等。
+      net.core.somaxconn: 1024
+      # vm.overcommit_memory: 1
 
 networks:
   gin_net:
-    driver: bridge
+    driver: bridge #####这些值： none， host, bridge.
+
+volumes:
+  test_dir:  ### test_dir 是一个卷名，用于在多个 container之间保持数据同步，但是和本地的host 没有任何关联。 在本地host 该目录不一定要存在。
