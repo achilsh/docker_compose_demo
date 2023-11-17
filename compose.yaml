@@ -6,11 +6,9 @@ services:
       dockerfile: Dockerfile  ##指定 自定义构建的dockerfile， 使用此文件来构建。
       args: 
         - GIT_COMMIT=cdc3b19 ## 指定参数，该参数在构建时传给 Dockerfile中的 ARG GIT_COMMIT
-
     healthcheck:  ### 检查容器是否在运行。
       disable: true  
     image: gin_demo:v1    ##指定已存在镜像名和版本, 如果该项和 build 项同时指定，那么优先使用该项，而不是build项。
-
     container_name: gin_demo1
     user: root
     volumes:
@@ -33,7 +31,7 @@ services:
     networks:   ##指定服务容器加入的网络。
       - gin_net 
     # network_mode: bridge ### 设置服务容器的网络模型 不能和 networks同时设置。 有这些值： none， host, bridge. 
-    sysctls: ###定义设置容器的内核参数等。
+    sysctls: ### 设置容器的内核参数等。
       net.core.somaxconn: 1024
 
     ulimits: ### 设置容器的默认限制值。
@@ -77,15 +75,29 @@ services:
       - test_dir:/data/test_demo_c_vv:rw ####### test_dir 可以是 顶层 volumes定义的，如果其他容器也挂载了这个卷名，那么可以和其他容器共享该目录中的数据。
     networks:
       - gin_net
-      
-
-    sysctls: ###定义设置容器的内核参数等。
+    sysctls: ### 设置容器的内核参数等。
       net.core.somaxconn: 1024
       # vm.overcommit_memory: 1
+
+  nginx:
+    image: nginx 
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost"]
+      interval: 15s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+
+  self_define_service:
+    image: ubuntu:20.04
+    container_name: self_def_service_c
+    restart: always       ### 通过 docker compose ps 查看到 一直在重启。
+    command: ["echo", "this is demo"] ###覆盖image中声明的CMD; 如果 该值为： [] ，那么image中的命令不会被执行，如果没有设置该值，那么就使用Image 中的CMD值。
 
 networks:
   gin_net:
     driver: bridge #####这些值： none， host, bridge.
-
+  other_net:  #### 设置另外一种网络，可以在其他的service中的 networks 字段设置。
 volumes:
   test_dir:  ### test_dir 是一个卷名，用于在多个 container之间保持数据同步，但是和本地的host 没有任何关联。 在本地host 该目录不一定要存在。
+  test_dir_2: 
